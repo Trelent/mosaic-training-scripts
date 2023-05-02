@@ -1,0 +1,100 @@
+# data_local: ./my-copy-c4
+# data_remote: # If blank, files must be present in data_local
+max_seq_len: 2048
+global_seed: 42
+
+# Run Name
+run_name: # If left blank, will be read from env var $COMPOSER_RUN_NAME
+
+# Model
+model:
+  name: trelent_python_docstrings
+  init_device: meta
+  d_model: 768
+  n_heads: 12
+  n_layers: 12
+  mlp_ratio: 4
+  max_seq_len: ${max_seq_len}
+  vocab_size: 50368
+  attn_impl: triton
+
+# Tokenizer
+tokenizer:
+  name: gpt2
+  kwargs:
+    model_max_length: ${max_seq_len}
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    name: trelent/the-stack-dedup-python-docstrings-1.0-percent-unified
+    split: train
+    max_seq_length: ${max_seq_len}
+    allow_pad_trimming: false
+    decoder_only_format: true
+    packing_ratio: 3.5
+    shuffle: true
+  drop_last: true
+  num_workers: 8
+  pin_memory: false
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
+
+# There is no validation split so we skip eval_loader
+
+# Optimization
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 100ba
+  alpha_f: 0.1
+
+optimizer:
+  name: decoupled_adamw
+  lr: 6.0e-4
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+
+algorithms:
+  gradient_clipping:
+    clipping_type: norm
+    clipping_threshold: 1.0
+
+max_duration: 4800ba # ~ 2.5B tokens
+eval_interval: 500ba
+eval_first: false
+eval_subset_num_batches: -1
+global_train_batch_size: 256
+
+# System
+seed: ${global_seed}
+device_eval_batch_size: 16
+device_train_microbatch_size: 16
+# device_train_microbatch_size: auto
+precision: amp_bf16
+
+# FSDP
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+  verbose: false
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+callbacks:
+  speed_monitor:
+    window_size: 10
+  lr_monitor: {}
+  memory_monitor: {}
+  runtime_estimator: {}
